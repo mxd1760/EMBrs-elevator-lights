@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+cortex-m = { version = "0.7.7", features = ["inline-asm"] }
+cortex-m-rt = "0.7.5"
+cortex-m-semihosting = "0.5.0"
+stm32f4xx-hal = { version = "0.23.0", features = ["stm32f446"] }
