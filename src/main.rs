@@ -218,6 +218,9 @@ fn SysTick() {
             }
         }
         ELEVATOR_POS_IDX.store(new_val, Ordering::Release);
+        if new_val == ELEVATOR_POS_TARGET.load(Ordering::Acquire){
+            find_and_set_target();
+        }
     }
 }
 
