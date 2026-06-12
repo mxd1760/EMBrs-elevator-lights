@@ -111,7 +111,7 @@ fn main() -> ! {
         elevator_pos_lights.iter_mut().for_each(|light| {
             light.set_low();
         });
-        let ecm = ELEVATOR_CALL_MASK.swap(0, Ordering::Acquire);
+        let ecm = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
         if ecm != 0 {
             if ecm & MASK_PB1 != 0 {
                 elevator_call_lights[0].set_high();
@@ -132,20 +132,93 @@ fn main() -> ! {
         let idx = ELEVATOR_POS_IDX.load(Ordering::Acquire);
         elevator_pos_lights[idx].set_high();
         elevator_call_lights[idx].set_low();
+        ELEVATOR_CALL_MASK.store(ecm & !2_u8.pow((idx+1) as u32),Ordering::Release);
     }
 }
+
+fn find_and_set_target(){
+    let elevator_is_moving = ELEVATOR_IS_MOVING.load(Ordering::Acquire);
+    if !elevator_is_moving{
+        find_direction()
+    }
+    if ELEVATOR_GOING_UP.load(Ordering::Acquire){
+        set_target_furthest_above()
+    }else{
+        set_target_furthest_below()
+    }
+    let elevator_position = ELEVATOR_POS_IDX.load(Ordering::Acquire);
+    let elevator_target =  ELEVATOR_POS_TARGET.load(Ordering::Acquire);
+    if elevator_position != elevator_target{
+        if !elevator_is_moving{
+            ELEVATOR_IS_MOVING.store(true,Ordering::Release);
+            
+        }
+    }else{
+        if elevator_is_moving{
+            ELEVATOR_IS_MOVING.store(false,Ordering::Release);
+        }
+    }
+    DO_TICK.store(true,Ordering::Release);
+}
+
+fn find_direction(){
+    let elevator_pos = ELEVATOR_POS_IDX.load(Ordering::Acquire);
+    if elevator_pos>=NUM_FLOORS/2{
+        // try going up
+        let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
+        ELEVATOR_GOING_UP.store(call_mask>2_u8.pow(elevator_pos as u32+1),Ordering::Release);
+    }else{
+        // try going down
+        let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
+        ELEVATOR_GOING_UP.store(call_mask%2_u8.pow(elevator_pos as u32+1)==0,Ordering::Release);
+    }
+}
+
+fn set_target_furthest_above(){
+    let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
+    for i in 0..NUM_FLOORS{
+        if call_mask & 2_u8.pow((NUM_FLOORS-i) as u32) != 0{
+            ELEVATOR_POS_TARGET.store(NUM_FLOORS-i-1,Ordering::Release);
+            return;
+        }
+    }
+}
+
+fn set_target_furthest_below(){
+    let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
+    for i in 0..NUM_FLOORS{
+        if call_mask & 2_u8.pow(i as u32 +1) as u8 !=0{
+            ELEVATOR_POS_TARGET.store(i,Ordering::Release);
+            return;
+        }
+    }
+}
+
 
 static DO_TICK: AtomicBool = AtomicBool::new(true);
 static ELEVATOR_POS_IDX: AtomicUsize = AtomicUsize::new(0);
 static ELEVATOR_CALL_MASK: AtomicU8 = AtomicU8::new(0);
+static ELEVATOR_POS_TARGET: AtomicUsize = AtomicUsize::new(0);
+static ELEVATOR_GOING_UP: AtomicBool = AtomicBool::new(true);
+static ELEVATOR_IS_MOVING: AtomicBool = AtomicBool::new(false);
 
 #[exception]
 fn SysTick() {
     hprintln!("Tick");
     DO_TICK.store(true, Ordering::Release);
-    let mut new_val = ELEVATOR_POS_IDX.load(Ordering::Acquire);
-    new_val = (new_val + 1) % NUM_FLOORS;
-    ELEVATOR_POS_IDX.store(new_val, Ordering::Release);
+    if ELEVATOR_IS_MOVING.load(Ordering::Acquire){
+        let mut new_val = ELEVATOR_POS_IDX.load(Ordering::Acquire);
+        if ELEVATOR_GOING_UP.load(Ordering::Acquire){
+            if new_val<NUM_FLOORS-1{
+                new_val = new_val + 1;
+            }   
+        }else{
+            if new_val>0{
+                new_val = new_val - 1;
+            }
+        }
+        ELEVATOR_POS_IDX.store(new_val, Ordering::Release);
+    }
 }
 
 const MASK_PB1: u8 = 0b10;
@@ -162,6 +235,7 @@ fn EXTI1() {
     let mask = MASK_PB1;
     val |= mask;
     ELEVATOR_CALL_MASK.store(val, Ordering::Release);
+    find_and_set_target();
     unsafe {
         (*pac::EXTI::ptr()).pr().write(|w| w.bits(mask as u32));
     }
@@ -175,6 +249,7 @@ fn EXTI2() {
     let mask = MASK_PB2;
     val |= mask;
     ELEVATOR_CALL_MASK.store(val, Ordering::Release);
+    find_and_set_target();
     unsafe {
         (*pac::EXTI::ptr()).pr().write(|w| w.bits(mask as u32));
     }
@@ -188,6 +263,7 @@ fn EXTI3() {
     let mask = MASK_PB3;
     val |= mask;
     ELEVATOR_CALL_MASK.store(val, Ordering::Release);
+    find_and_set_target();
     unsafe {
         (*pac::EXTI::ptr()).pr().write(|w| w.bits(mask as u32));
     }
@@ -201,6 +277,7 @@ fn EXTI4() {
     let mask = MASK_PB4;
     val |= mask;
     ELEVATOR_CALL_MASK.store(val, Ordering::Release);
+    find_and_set_target();
     unsafe {
         (*pac::EXTI::ptr()).pr().write(|w| w.bits(mask as u32));
     }
@@ -214,6 +291,7 @@ fn EXTI9_5() {
     let mask = MASK_PB5;
     val |= mask;
     ELEVATOR_CALL_MASK.store(val, Ordering::Release);
+    find_and_set_target();
     unsafe {
         (*pac::EXTI::ptr()).pr().write(|w| w.bits(mask as u32));
     }
