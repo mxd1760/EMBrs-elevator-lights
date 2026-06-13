@@ -8,7 +8,7 @@ use core::{
 
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m_rt::{entry, exception};
-use cortex_m_semihosting::hprintln;
+//use cortex_m_semihosting::hprintln;
 
 use stm32f4xx_hal::{
     gpio::{AnyPin, Edge, Output, PushPull},
@@ -207,7 +207,7 @@ static ELEVATOR_IS_MOVING: AtomicBool = AtomicBool::new(false);
 
 #[exception]
 fn SysTick() {
-    hprintln!("Tick");
+    //hprintln!("Tick");
     DO_TICK.store(true, Ordering::Release);
     if ELEVATOR_IS_MOVING.load(Ordering::Acquire){
         let mut new_val = ELEVATOR_POS_IDX.load(Ordering::Acquire);
@@ -235,7 +235,7 @@ const MASK_PB5: u8 = 0b100000;
 
 #[interrupt]
 fn EXTI1() {
-    hprintln!("Triggered ISR 1");
+    //hprintln!("Triggered ISR 1");
     DO_TICK.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB1;
@@ -249,7 +249,7 @@ fn EXTI1() {
 
 #[interrupt]
 fn EXTI2() {
-    hprintln!("Triggered ISR 2");
+    //hprintln!("Triggered ISR 2");
     DO_TICK.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB2;
@@ -261,9 +261,10 @@ fn EXTI2() {
     }
 }
 
+#[allow(non_snake_case)]
 #[interrupt]
 fn EXTI3() {
-    hprintln!("Triggered ISR 3");
+    //hprintln!("Triggered ISR 3");
     DO_TICK.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB3;
@@ -277,7 +278,7 @@ fn EXTI3() {
 
 #[interrupt]
 fn EXTI4() {
-    hprintln!("Triggered ISR 4");
+    //hprintln!("Triggered ISR 4");
     DO_TICK.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB4;
@@ -291,7 +292,7 @@ fn EXTI4() {
 
 #[interrupt]
 fn EXTI9_5() {
-    hprintln!("Triggered ISR 5");
+    //hprintln!("Triggered ISR 5");
     DO_TICK.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB5;
