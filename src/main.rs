@@ -133,6 +133,9 @@ fn main() -> ! {
         elevator_pos_lights[idx].set_high();
         elevator_call_lights[idx].set_low();
         ELEVATOR_CALL_MASK.store(ecm & !2_u8.pow((idx+1) as u32),Ordering::Release);
+        if !ELEVATOR_IS_MOVING.load(Ordering::Acquire) && ELEVATOR_CALL_MASK.load(Ordering::Acquire)!=0 {
+            find_and_set_target();
+        }
     }
 }
 
