@@ -205,6 +205,7 @@ static ELEVATOR_POS_TARGET: AtomicUsize = AtomicUsize::new(0);
 static ELEVATOR_GOING_UP: AtomicBool = AtomicBool::new(true);
 static ELEVATOR_IS_MOVING: AtomicBool = AtomicBool::new(false);
 
+#[allow(non_snake_case)]
 #[exception]
 fn SysTick() {
     //hprintln!("Tick");
@@ -233,6 +234,7 @@ const MASK_PB3: u8 = 0b1000;
 const MASK_PB4: u8 = 0b10000;
 const MASK_PB5: u8 = 0b100000;
 
+#[allow(non_snake_case)]
 #[interrupt]
 fn EXTI1() {
     //hprintln!("Triggered ISR 1");
@@ -247,6 +249,7 @@ fn EXTI1() {
     }
 }
 
+#[allow(non_snake_case)]
 #[interrupt]
 fn EXTI2() {
     //hprintln!("Triggered ISR 2");
@@ -276,6 +279,7 @@ fn EXTI3() {
     }
 }
 
+#[allow(non_snake_case)]
 #[interrupt]
 fn EXTI4() {
     //hprintln!("Triggered ISR 4");
@@ -290,6 +294,7 @@ fn EXTI4() {
     }
 }
 
+#[allow(non_snake_case)]
 #[interrupt]
 fn EXTI9_5() {
     //hprintln!("Triggered ISR 5");
