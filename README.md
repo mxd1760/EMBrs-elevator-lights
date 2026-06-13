@@ -4,4 +4,10 @@ A simple Embedded Program to simulate lights on an elevator pannel and the eleva
 
 Built on STM32 Nucleo F446RE board
 
+## Video
+
+[![Video](./VideoThumbnail.png)](./Sample_Video.mp4)
+
+## Circuit Diagram
+
 ![image](./Circuit_Diagram.png)
