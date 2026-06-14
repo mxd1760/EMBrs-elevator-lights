@@ -106,8 +106,10 @@ fn main() -> ! {
         gpioa.pa4.into_push_pull_output().erase(),
     ];
     loop {
-        while !DO_TICK.load(Ordering::Acquire) {}
-        DO_TICK.store(false, Ordering::Release);
+        while !DO_LIGHTS_UPDATE.load(Ordering::Acquire) {
+            cortex_m::asm::wfi();
+        }
+        DO_LIGHTS_UPDATE.store(false, Ordering::Release);
         elevator_pos_lights.iter_mut().for_each(|light| {
             light.set_low();
         });
@@ -132,7 +134,7 @@ fn main() -> ! {
         let idx = ELEVATOR_POS_IDX.load(Ordering::Acquire);
         elevator_pos_lights[idx].set_high();
         elevator_call_lights[idx].set_low();
-        ELEVATOR_CALL_MASK.store(ecm & !2_u8.pow((idx+1) as u32),Ordering::Release);
+        ELEVATOR_CALL_MASK.store(ecm & !(1u8 << (idx+1)),Ordering::Release);
         if !ELEVATOR_IS_MOVING.load(Ordering::Acquire) && ELEVATOR_CALL_MASK.load(Ordering::Acquire)!=0 {
             find_and_set_target();
         }
@@ -161,7 +163,7 @@ fn find_and_set_target(){
             ELEVATOR_IS_MOVING.store(false,Ordering::Release);
         }
     }
-    DO_TICK.store(true,Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true,Ordering::Release);
 }
 
 fn find_direction(){
@@ -169,18 +171,18 @@ fn find_direction(){
     if elevator_pos>=NUM_FLOORS/2{
         // try going up
         let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
-        ELEVATOR_GOING_UP.store(call_mask>2_u8.pow(elevator_pos as u32+1),Ordering::Release);
+        ELEVATOR_GOING_UP.store(call_mask> (1u8 << elevator_pos+1),Ordering::Release);
     }else{
         // try going down
         let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
-        ELEVATOR_GOING_UP.store(call_mask%2_u8.pow(elevator_pos as u32+1)==0,Ordering::Release);
+        ELEVATOR_GOING_UP.store(call_mask% (1u8 << elevator_pos+1)==0,Ordering::Release);
     }
 }
 
 fn set_target_furthest_above(){
     let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     for i in 0..NUM_FLOORS{
-        if call_mask & 2_u8.pow((NUM_FLOORS-i) as u32) != 0{
+        if call_mask & 1u8 << NUM_FLOORS-i != 0{
             ELEVATOR_POS_TARGET.store(NUM_FLOORS-i-1,Ordering::Release);
             return;
         }
@@ -190,7 +192,7 @@ fn set_target_furthest_above(){
 fn set_target_furthest_below(){
     let call_mask = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     for i in 0..NUM_FLOORS{
-        if call_mask & 2_u8.pow(i as u32 +1) as u8 !=0{
+        if call_mask & 1u8 << i+1  as u8 !=0{
             ELEVATOR_POS_TARGET.store(i,Ordering::Release);
             return;
         }
@@ -198,7 +200,7 @@ fn set_target_furthest_below(){
 }
 
 
-static DO_TICK: AtomicBool = AtomicBool::new(true);
+static DO_LIGHTS_UPDATE: AtomicBool = AtomicBool::new(true);
 static ELEVATOR_POS_IDX: AtomicUsize = AtomicUsize::new(0);
 static ELEVATOR_CALL_MASK: AtomicU8 = AtomicU8::new(0);
 static ELEVATOR_POS_TARGET: AtomicUsize = AtomicUsize::new(0);
@@ -209,7 +211,7 @@ static ELEVATOR_IS_MOVING: AtomicBool = AtomicBool::new(false);
 #[exception]
 fn SysTick() {
     //hprintln!("Tick");
-    DO_TICK.store(true, Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true, Ordering::Release);
     if ELEVATOR_IS_MOVING.load(Ordering::Acquire){
         let mut new_val = ELEVATOR_POS_IDX.load(Ordering::Acquire);
         if ELEVATOR_GOING_UP.load(Ordering::Acquire){
@@ -238,7 +240,7 @@ const MASK_PB5: u8 = 0b100000;
 #[interrupt]
 fn EXTI1() {
     //hprintln!("Triggered ISR 1");
-    DO_TICK.store(true, Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB1;
     val |= mask;
@@ -253,7 +255,7 @@ fn EXTI1() {
 #[interrupt]
 fn EXTI2() {
     //hprintln!("Triggered ISR 2");
-    DO_TICK.store(true, Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB2;
     val |= mask;
@@ -268,7 +270,7 @@ fn EXTI2() {
 #[interrupt]
 fn EXTI3() {
     //hprintln!("Triggered ISR 3");
-    DO_TICK.store(true, Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB3;
     val |= mask;
@@ -283,7 +285,7 @@ fn EXTI3() {
 #[interrupt]
 fn EXTI4() {
     //hprintln!("Triggered ISR 4");
-    DO_TICK.store(true, Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB4;
     val |= mask;
@@ -298,7 +300,7 @@ fn EXTI4() {
 #[interrupt]
 fn EXTI9_5() {
     //hprintln!("Triggered ISR 5");
-    DO_TICK.store(true, Ordering::Release);
+    DO_LIGHTS_UPDATE.store(true, Ordering::Release);
     let mut val = ELEVATOR_CALL_MASK.load(Ordering::Acquire);
     let mask = MASK_PB5;
     val |= mask;
