@@ -14,6 +14,7 @@ Built on STM32 Nucleo F446RE board
 
 ## Build Instructions
 
+0. make sure you have [probe-rs](https://probe.rs/) setup on your system to help rust find your connected physical or emulated device.
 1. clone or copy the repo to a location on your computer
 2. run '''rustup target add thumbv7em-none-eabihf''' to add the embedded target
 3. be sure to plug in an appropirate device to build to.
